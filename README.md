@@ -4,7 +4,12 @@ This serves the Humbug Mosquito classifier using TorchServe
 
 ## Requirements
 ```
-pip install torchserve torch-model-archiver torch-workflow-archiver
+pip install torchserve torch-model-archiver torch-workflow-archiver captum nvgpu
+```
+
+## Audio processing requirements
+```
+pip install librosa
 ```
 
 ## Creating an archive
@@ -116,4 +121,13 @@ Result will be a dictionary of offsets:
   'ma africanus': 4.244718002155423e-05,
   'ma uniformis': 4.197566522634588e-05,
   'an coustani': 2.3843593226047233e-05,
-  'ae aegypti': 3.503900188661646e-06}}```
+  'ae aegypti': 3.503900188661646e-06}
+```
+
+## Prediction script
+* Will copy the directory structure from the src directory.
+* Assumes that the wav files have already been clipped by the MED process.
+* Creates a duplicate directory structure with copy of the wav file and the accompanying audacity label file
+```
+python3 src/predict/predict_msc.py ../test_msc_data ../test_msc_inf
+```
