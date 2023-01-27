@@ -104,7 +104,7 @@ def batch_to_audacity(batch: Dict, min_duration: float, rate: int) -> List[List[
             row = []
             row.append(str(offset / rate)) # start
             row.append(str(offset / rate + min_duration)) # end
-            row.append(f"{species_key}_P{round(batch[offset][species_key])}")
+            row.append(f"{species_key}_P{round(batch[offset][species_key],3)}")
             rows.append(row)
     
     return rows
