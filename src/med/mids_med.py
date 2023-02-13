@@ -14,7 +14,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class MidsMSCModel(nn.Module):
+class MidsMEDModel(nn.Module):
     class PCENTransform(nn.Module):
 
         def __init__(self, eps=1e-6, s=0.025, alpha=0.98, delta=2, r=0.5, trainable=True):
@@ -71,7 +71,7 @@ class MidsMSCModel(nn.Module):
         # num_classes=0 removes the pretrained head
         self.backbone = timm.create_model(model_name,
                         pretrained=False, num_classes=2, in_chans=1, 
-                        drop_path_rate=0.1, global_pool='max',
+                        drop_path_rate=0.1, global_pool='avgmax',
                         drop_rate=0.1)
         #####  This section is model specific
         #### It freezes some fo the layers by name
