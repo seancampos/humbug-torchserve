@@ -80,7 +80,6 @@ class MidsMEDModel(nn.Module):
         self.spec_layer = features.STFT(n_fft=1024, freq_bins=None, hop_length=128,
                               window='hann', freq_scale='linear', center=True, pad_mode='reflect',
                            sr=8000, output_format="Magnitude", trainable=True, fmin=300, fmax=3000,)
-        self.out = nn.Linear(self.backbone.num_features, 1)
         self.sizer = VT.Resize((image_size,image_size))
         self.pcen_layer = self.PCENTransform(eps=1e-6, s=0.025, alpha=0.6, delta=0.1, r=0.2, trainable=True)
         #self.augment_layer = augment_audio(trainable = True, sample_rate = config.rate)
