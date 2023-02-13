@@ -22,7 +22,7 @@ class ModelHandler(ImageClassifier):
     def initialize(self, context):
         super().initialize(context)
         
-        #self.set_max_result_classes(8)
+        self.set_max_result_classes(2)
     
     def preprocess(self, data):
         """
