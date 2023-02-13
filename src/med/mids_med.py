@@ -66,20 +66,20 @@ class MidsMSCModel(nn.Module):
     
     def __init__(self):
         super().__init__()
-        model_name = 'convnext_xlarge_in22k'
-        image_size = 224
+        model_name = 'convnext_base_384_in22ft1k'
+        image_size = 384
         # num_classes=0 removes the pretrained head
         self.backbone = timm.create_model(model_name,
-                        pretrained=False, num_classes=8, in_chans=1, 
-                        drop_path_rate=0.2, global_pool='max',
-                        drop_rate=0.25)
+                        pretrained=False, num_classes=2, in_chans=1, 
+                        drop_path_rate=0.1, global_pool='max',
+                        drop_rate=0.1)
         #####  This section is model specific
         #### It freezes some fo the layers by name
         #### you'll have to inspect the model to see the names
                 #### end layer freezing
-        self.spec_layer = features.STFT(n_fft=2048, freq_bins=None, hop_length=2048 // 4,
+        self.spec_layer = features.STFT(n_fft=1024, freq_bins=None, hop_length=128,
                               window='hann', freq_scale='linear', center=True, pad_mode='reflect',
-                           sr=8000, output_format="Magnitude", trainable=True,)
+                           sr=8000, output_format="Magnitude", trainable=True, fmin=300, fmax=3000,)
         self.out = nn.Linear(self.backbone.num_features, 1)
         self.sizer = VT.Resize((image_size,image_size))
         self.pcen_layer = self.PCENTransform(eps=1e-6, s=0.025, alpha=0.6, delta=0.1, r=0.2, trainable=True)

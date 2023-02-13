@@ -29,12 +29,36 @@ Replace the path to the checkpoint as needed
 
 ## Serving a model
 Move the model archive into the serving directory if not already present
+
+#### MSC
 ```
 mv midsmscmodel.mar models/
 ```
+
+#### MED
+```
+mv midsmedmodel.mar models/
+```
+
 Start the server and load all the models
 ```
 torchserve --start --model-store ./models --models all
+```
+
+Registering the models:
+> this only needs to be done the first time you're using the server or models.  It will remember the models on subsequent startups
+
+```
+curl -X POST  "http://localhost:8081/models?url=mids_med/midsmedmodel.mar"
+curl -X POST  "http://localhost:8081/models?url=mids_msc/midsmscmodel.mar"
+```
+
+Add Workers:
+> This only needs to be done the first time you're using the server or models.  It will remember the worker settings on subsequent startups.
+
+```
+curl -v -X PUT "http://localhost:8081/models/midsmedmodel?min_worker=1"
+curl -v -X PUT "http://localhost:8081/models/midsmscmodel?min_worker=1"
 ```
 
 ## Stopping the server
