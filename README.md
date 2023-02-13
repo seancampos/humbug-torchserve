@@ -13,9 +13,18 @@ pip install librosa
 ```
 
 ## Creating an archive
+
+### MSC
 ```
 torch-model-archiver --model-name midsmscmodel --version 1.0 --model-file src/msc/mids_msc.py --serialized-file ../../models/model_e186_2022_10_11_11_18_50.pth --handler src/msc/model_handler.py --extra-files src/msc/index_to_name.json
 ```
+
+### MED
+```
+torch-model-archiver --model-name midsmedmodel --version 1.0 --model-file src/med/mids_med.py --serialized-file ../../models/model_presentation_draft_2022_04_07_11_52_08.pth --handler src/med/model_handler.py
+```
+
+
 Replace the path to the checkpoint as needed
 
 ## Serving a model
