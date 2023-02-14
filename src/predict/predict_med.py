@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import shutil
 import torch
+import torchaudio
 from tqdm.auto import tqdm
 from typing import List, Dict
 
@@ -27,7 +28,8 @@ def get_recording_list(dir: str) -> List[str]:
     return file_list
 
 def get_recordings_to_process(src: str, dst: str) -> List[str]:
-    src_files = get_recording_list(src)
+    recordings_df = pd.read_csv(src)
+    src_files = recordings_df["current_path"].tolist()
     dst_files = get_recording_list(dst)
 
     return list(set(src_files) - set(dst_files))
@@ -35,6 +37,13 @@ def get_recordings_to_process(src: str, dst: str) -> List[str]:
 def get_audio_segments(file: str, sr: int) -> np.ndarray:
     effects = [["remix", "1"],['gain', '-n'],["highpass", "200"]]
     signal, rate = librosa.load(file, sr=sr)
+    waveform, _ = torchaudio.sox_effects.apply_effects_tensor(torch.tensor(signal).expand([2, -1]), sample_rate=rate, effects=effects)
+    f = waveform[0]
+    mu = torch.std_mean(f)[1]
+    st = torch.std_mean(f)[0]
+    # clip amplitudes
+    signal = torch.clamp(f, min=mu-st*3, max=mu+st*3).unsqueeze(0)
+    # signal_length += len(signal[0]) / sr
     return signal
 
 # This function pads a short-audio tensor with its mean to ensure that it becomes a 1.92 sec long audio equivalent
@@ -152,8 +161,8 @@ if __name__ == "__main__":
                         prog = 'ProgramName',
                         description = 'What the program does',
                         epilog = 'Text at the bottom of help')
-    parser.add_argument("src")
-    parser.add_argument("dst")
+    parser.add_argument("csv", help="CSV extract from database")
+    parser.add_argument("dst", help="Destination directory for output files")
     args = parser.parse_args()
 
     min_length = 1.92
@@ -163,7 +172,7 @@ if __name__ == "__main__":
     n_hop = 128
 
     # get list of unprocessed wav files from MED process
-    recording_list = get_recordings_to_process(args.src, args.dst)
+    recording_list = get_recordings_to_process(args.csv, args.dst)
     logging.debug(f"wav list len: {len(recording_list)}")
     # loop over wav file list
     for rec_file in tqdm(recording_list):
