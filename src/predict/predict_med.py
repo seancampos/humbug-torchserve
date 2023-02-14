@@ -123,7 +123,7 @@ async def predict_sample(signal: np.ndarray, min_duration: float, rate: int, win
         # loop over segments of sample_length
         for batch_index, signal_window in enumerate(padded_stepped_signal):
             # send to torch serve
-            async with session.post(torchserve_url, data=signal_window.tobytes()) as resp:
+            async with session.post(torchserve_url, data=signal_window.numpy().tobytes()) as resp:
                 # get result and parse
                 result_text = await resp.text()
                 batch[batch_index] = json.loads(result_text)
@@ -161,8 +161,8 @@ if __name__ == "__main__":
                         prog = 'ProgramName',
                         description = 'What the program does',
                         epilog = 'Text at the bottom of help')
-    parser.add_argument("csv", help="CSV extract from database")
-    parser.add_argument("dst", help="Destination directory for output files")
+    parser.add_argument("--csv", help="CSV extract from database",)
+    parser.add_argument("--dst", help="Destination directory for output files")
     args = parser.parse_args()
 
     min_length = 1.92
