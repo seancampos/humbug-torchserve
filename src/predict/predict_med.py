@@ -7,7 +7,9 @@ from pathlib import Path
 import librosa
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import shutil
+import soundfile as sf
 import torch
 import torchaudio
 from tqdm.auto import tqdm
@@ -46,32 +48,6 @@ def get_audio_segments(file: str, sr: int) -> np.ndarray:
     # signal_length += len(signal[0]) / sr
     return signal
 
-# This function pads a short-audio tensor with its mean to ensure that it becomes a 1.92 sec long audio equivalent
-def pad_mean(x_temp: np.ndarray, sample_length: int) -> np.ndarray:
-    logging.debug("inside padding mean...")
-    x_mean = np.mean(x_temp)
-    #x_mean.cuda()
-    
-    logging.debug("X_mean = " + str(x_mean))
-    left_pad_amt = int((sample_length - x_temp.shape[0]) // 2)
-    logging.debug("left_pad_amt = " + str(left_pad_amt))
-    left_pad = np.zeros([left_pad_amt]) #+ (0.1**0.5)*torch.randn(1, left_pad_amt)
-    logging.debug("left_pad shape = " + str(left_pad.shape))
-    left_pad_mean_add = left_pad + x_mean
-    logging.debug("left_pad_mean shape = " + str(left_pad_mean_add))
-    logging.debug("sum of left pad mean add = " + str(np.sum(left_pad_mean_add)))
-    
-    right_pad_amt = int(sample_length - x_temp.shape[0] - left_pad_amt)
-    right_pad = np.zeros([right_pad_amt])# + (0.1**0.5)*torch.randn(1, right_pad_amt)
-    logging.debug("right_pad shape = " + str(right_pad.shape))
-    right_pad_mean_add = right_pad + x_mean
-    logging.debug("right_pad_mean shape = " + str(right_pad_mean_add))
-    logging.debug("sum of right pad mean add = "  + str(np.sum(right_pad_mean_add)))
-    
-    f = np.hstack([left_pad_mean_add, x_temp, right_pad_mean_add])
-    # f = np.unsqueeze(dim = 0)
-    #print("returning a tensor of shape = " + str(f.shape))
-    return(f)
 
 def active_BALD(out, X, n_classes):
     if type(X) == int:
@@ -105,6 +81,110 @@ def active_BALD(out, X, n_classes):
 # G_X = predictive entropy
 # U_X = MI
     return G_X, U_X, log_prob
+
+def _build_timestmap_df(mean_predictions, G_X, U_X, time_to_sample, det_threshold):
+    """Use the predictions to build an array of contiguous timestamps where the
+    probability of detection is above threshold"""
+    
+    # find where the average 2nd element (positive score) is > threshold
+    condition = mean_predictions[:, 1] > det_threshold
+    preds_list = []
+    for start, stop in _contiguous_regions(condition):
+        # start and stop are frame indexes
+        # so multiply by n_hop and step_size samples
+        # then div by sample rate to get seconds
+        preds_list.append({"start": str(start * time_to_sample), "stop": str(stop * time_to_sample),
+                           "med_prob": "{:.4f}".format(
+                               np.mean(mean_predictions[start:stop][:, 1]))
+                           , "PE":
+                           "{:.4f}".format(np.mean(G_X[start:stop])),
+                           "MI": "{:.4f}".format(np.mean(U_X[start:stop]))})
+
+    return pd.DataFrame(preds_list)
+
+def _contiguous_regions(condition):
+    """Finds contiguous True regions of the boolean array "condition". Returns
+    a 2D array where the first column is the start index of the region and the
+    second column is the end index."""
+
+    # Find the indicies of changes in "condition"
+    d = np.diff(condition)
+    idx, = d.nonzero()
+
+    # We need to start things after the change in "condition". Therefore,
+    # we'll shift the index by 1 to the right.
+    idx += 1
+
+    if condition[0]:
+        # If the start of condition is True prepend a 0
+        idx = np.r_[0, idx]
+
+    if condition[-1]:
+        # If the end of condition is True, append the length of the array
+        idx = np.r_[idx, condition.size]  # Edit
+
+    # Reshape the result into two columns
+    idx.shape = (-1, 2)
+    return idx
+
+def plot_mids_MI(X_CNN, y, MI, p_threshold, root_out, filename, out_format='.png'):
+    '''Produce plot of all mosquito detected above a p_threshold. Supply Mutual Information values MI, feature inputs 
+    X_CNN, and predictions y (1D array of 0/1s). Plot to be displayed on dashboard either via svg or as part of a
+    video (looped png) with audio generated for this visual presentation.
+    
+    `out_format`: .png, or .svg
+    
+    '''
+    pos_pred_idx = np.where(y>p_threshold)[0]
+
+    fig, axs = plt.subplots(2, sharex=True, figsize=(10,5), gridspec_kw={
+           'width_ratios': [1],
+           'height_ratios': [2,1]})
+    # x_lims = mdates.date2num(T)
+    # date_format = mdates.DateFormatter('%M:%S')
+    # axs[0].xaxis_date()
+    # axs[0].xaxis.set_major_formatter(date_format)
+    
+    axs[0].set_ylabel('Frequency (kHz)')
+    
+    axs[0].imshow(np.hstack(X_CNN.squeeze()[pos_pred_idx]), aspect='auto', origin='lower',
+                  extent = [0, len(pos_pred_idx), 0, 4], interpolation=None)
+    axs[1].plot(y[pos_pred_idx], label='Probability of mosquito')
+    axs[1].plot(MI[pos_pred_idx], '--', label='Uncertainty of prediction')
+    axs[1].set_ylim([0., 1.02])
+    axs[1].legend(loc='upper center', bbox_to_anchor=(0.5, -0.05),
+              frameon=False, ncol=2)
+    # axs[1].xaxis.set_major_formatter(date_format)
+    
+    axs[1].yaxis.set_label_position("right")
+    axs[1].yaxis.tick_right()
+    axs[0].yaxis.set_label_position("right")
+    axs[0].yaxis.tick_right()
+    # axs[1].set_xlim([t[0], t[-1]])
+    axs[1].grid(which='major')
+    # axs[1].set_xlabel('Time (mm:ss)')
+    axs[1].xaxis.get_ticklocs(minor=True)
+    axs[1].yaxis.get_ticklocs(minor=True)
+    axs[1].minorticks_on()
+    labels = axs[1].get_xticklabels()
+    # remove the first and the last labels
+    labels[0] = ""
+    # set these new labels
+    axs[1].set_xticklabels(labels)
+#     
+
+    plt.subplots_adjust(top=0.985,
+    bottom=0.1,
+    left=0.0,
+    right=0.945,
+    hspace=0.065,
+    wspace=0.2)
+#     plt.show()
+    output_filename = os.path.join(root_out, filename) + out_format
+    plt.savefig(output_filename, transparent=False)
+    plt.close(plt.gcf()) # May be better to re-write to not use plt API
+# fig.autofmt_xdate()
+    return output_filename
 
 
 async def predict_sample(signal: np.ndarray, min_duration: float, rate: int, win_size: int, step_size: int, n_hop: int) -> dict:
@@ -170,6 +250,7 @@ if __name__ == "__main__":
     win_size = 360
     step_size = 120
     n_hop = 128
+    det_threshold = 0.5
 
     # get list of unprocessed wav files from MED process
     recording_list = get_recordings_to_process(args.csv, args.dst)
@@ -181,19 +262,42 @@ if __name__ == "__main__":
         signal = get_audio_segments(rec_file, rate)
         # run predict on wav file to get dict of offsets and predictions
         predictions = asyncio.run(predict_sample(signal, min_length, rate, win_size, step_size, n_hop))
+        # convert JSON output to 2-D array
+        # {0: {'1': 0.7850480079650879, '0': 0.21495196223258972},
+        #  1: {'1': 0.69720059633255, '0': 0.30279943346977234},
+        #  2: {'1': 0.7008734345436096, '0': 0.29912662506103516},
+        #  3: {'1': 0.6336677670478821, '0': 0.3663322329521179},
+        predictions_array = np.array([[pred['0'], pred['1']] for ind, pred in predictions.items()])
+        # layer sliding windows together
+        predictions_array_samples = np.array([predictions_array[:-4], predictions_array[1:-3], predictions_array[2:-2]])
 
         frame_count = signal.unfold(1, win_size * n_hop, step_size * n_hop).shape[1]
-        G_X, U_X, _ = active_BALD(np.log(predictions), frame_count, 2)
-        mean_predictions = np.mean(predictions, axis=0)
+        G_X, U_X, _ = active_BALD(np.log(predictions_array_samples), frame_count, 2)
+        mean_predictions = np.mean(predictions_array_samples, axis=0)
         
+        timestamp_df = _build_timestmap_df(mean_predictions, G_X, U_X, (n_hop * step_size / rate), det_threshold)
         # new output dir
-        new_output_dir = Path(os.path.dirname(rec_file).replace(args.src, args.dst))
+        new_output_dir = Path(args.dst)
         new_output_dir.mkdir(parents=True, exist_ok=True)
-        # txt filename
-        text_output_filename = Path(rec_file).with_suffix(".txt").name
-        # save file out
-        pd.DataFrame(mean_predictions).to_csv(Path(new_output_dir, text_output_filename))
-        # np.savetxt(Path(new_output_dir, text_output_filename), audacity_ndarray, fmt='%s', delimiter='\t')
-        # copy wav to new folder
-        # shutil.copyfile(rec_file, rec_file.replace(args.src, args.dst))
-        #print(json.dumps(batch))
+        # CSV filename
+        csv_output_filename = Path(rec_file).with_suffix(".csv").name
+        # save CSV file out
+        timestamp_df.to_csv(Path(new_output_dir, csv_output_filename))
+        # audacicy filename
+        txt_output_filename = Path(rec_file).with_suffix(".txt").name
+        # save audacity file
+        audacity_output = [[row["start"], row["stop"], f"{row['med_prob']}, PE: {row['PE']} MI: {row['MI']}"] for ind, row in timestamp_df.iterrows()]
+        np.savetxt(Path(new_output_dir, txt_output_filename), audacity_output, fmt='%s', delimiter='\t')
+        # audio file name
+        audio_output_filename = Path(rec_file).with_name(Path(rec_file).stem+"_mozz_pred.wav").name
+        # save audio file
+        mozz_audio_list = [signal[0][int(float(row["start"]) * rate):int(float(row["stop"]) * rate)] for ind, row in timestamp_df.iterrows()]
+        sf.write(Path(new_output_dir, audio_output_filename), np.hstack(mozz_audio_list), rate)
+        # # plot filename
+        # plot_mids_MI(spectrograms, mean_predictions[:,1], U_X, det_threshold, root_out, output_filename)
+
+
+        # audio_output_filename, audio_length, has_mosquito = _write_audio_for_plot(text_output_filename, signal, output_filename, root_out, sr)
+        #     if has_mosquito:
+        #         plot_filename = plot_mids_MI(spectrograms, mean_predictions[:,1], U_X, det_threshold, root_out, output_filename)
+        #         _write_video_for_dash(plot_filename, audio_output_filename, audio_length, root_out, output_filename)
