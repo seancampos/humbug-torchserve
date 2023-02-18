@@ -22,8 +22,8 @@ if __name__ == "__main__":
     # start_datetime = datetime.datetime.strptime(args.start, r"%Y-%m-%d")
     # end_datetime = datetime.datetime.strptime(args.end, r"%Y-%m-%d") + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
 
-    uuid_list = pd.read_csv(uuid_file).iloc[:,0]
-    dates_list = pd.read_csv(dates_file).iloc[:,0]
+    uuid_list = pd.read_csv(uuid_file).iloc[:,0:1]
+    dates_list = pd.read_csv(dates_file).iloc[:,0:1]
     date_column = dates_list.columns[0]
     dates_list.sort_values(date_column, inplace=True)
 
