@@ -15,7 +15,6 @@ if __name__ == "__main__":
     parser.add_argument("uuids", help="CSV file containing UUIDs.  Format is 1 column with header")
     parser.add_argument("dates", help="CSV file containing recordings dates. Format is 1 column with header and YYYY-MM-DD formated dates")
     parser.add_argument("mozzDir", help="Mount point for MozzWear Recordings (e.g. /dbmount/MozzWear)")
-    parser.add_argument()
     args = parser.parse_args()
 
     uuid_file = args.uuids
@@ -24,7 +23,7 @@ if __name__ == "__main__":
     # end_datetime = datetime.datetime.strptime(args.end, r"%Y-%m-%d") + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
 
     uuid_list = pd.read_csv(uuid_file).iloc[:,0].tolist()
-    dates_list = pd.read_csv(dates_file.iloc[:,0]).tolist()
+    dates_list = pd.read_csv(dates_file).iloc[:,0].tolist()
     dates_list.sort_values(dates_list.columns[0], inplace=True)
 
     start_of_dates = dates_list.iloc[:,0].apply(lambda x: datetime.datetime.strptime(x, r"%Y-%m-%d"))
