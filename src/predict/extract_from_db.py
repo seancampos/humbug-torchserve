@@ -22,12 +22,13 @@ if __name__ == "__main__":
     # start_datetime = datetime.datetime.strptime(args.start, r"%Y-%m-%d")
     # end_datetime = datetime.datetime.strptime(args.end, r"%Y-%m-%d") + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
 
-    uuid_list = pd.read_csv(uuid_file).iloc[:,0].tolist()
-    dates_list = pd.read_csv(dates_file).iloc[:,0].tolist()
-    dates_list.sort_values(dates_list.columns[0], inplace=True)
+    uuid_list = pd.read_csv(uuid_file).iloc[:,0]
+    dates_list = pd.read_csv(dates_file).iloc[:,0]
+    date_column = dates_list.columns[0]
+    dates_list.sort_values(date_column, inplace=True)
 
-    start_of_dates = dates_list.iloc[:,0].apply(lambda x: datetime.datetime.strptime(x, r"%Y-%m-%d"))
-    end_of_dates = dates_list.iloc[:,0].apply(lambda x: datetime.datetime.strptime(x, r"%Y-%m-%d") + datetime.timedelta(days=1) - datetime.timedelta(seconds=1))
+    start_of_dates = dates_list[date_column].apply(lambda x: datetime.datetime.strptime(x, r"%Y-%m-%d"))
+    end_of_dates = dates_list[date_column].apply(lambda x: datetime.datetime.strptime(x, r"%Y-%m-%d") + datetime.timedelta(days=1) - datetime.timedelta(seconds=1))
 
     # connect to database
     client = MongoClient('mongodb://humbug.ac.uk/')
@@ -35,7 +36,7 @@ if __name__ == "__main__":
     recordings = db['reports']
 
     recordings_df_list = []
-    for start_datetime, end_datetime in zip(start_dates, end_dates):
+    for start_datetime, end_datetime in zip(start_of_dates, end_of_dates):
         myquery = {"uuid": {"$in": uuid_list}, "datetime_recorded": {"$gt": start_datetime, "$lt": end_datetime}}
         mydoc = recordings.find(myquery)
 
@@ -46,7 +47,7 @@ if __name__ == "__main__":
         recordings_df_list.append(recording_df)
 
     pd.concat(recordings_df_list, ignore_index=True)\
-        .to_csv(f"MED_Task_{dates_list.iloc[0][dates_list.columns[0]]}_to_{dates_list.iloc[-1][dates_list.columns[0]]}.csv", index=False)
+        .to_csv(f"MED_Task_{dates_list.iloc[0][date_column]}_to_{dates_list.iloc[-1][date_column]}.csv", index=False)
 
 
 
