@@ -158,20 +158,28 @@ Result will be a dictionary of offsets:
 ```
 
 # Prediction script sequence to build a study
-1. Create a CSV file that contains the study uuids. i.e. `uuids.csv`
+0. Ensure TorchServe is running as per the above info
+1. Create a CSV file that contains the study uuids. e.g. `study_uuids.csv` and a CSV file for the study dates e.g. `study_dates.csv`.
 2. Run the database extractor with the date range and path to recordings to create a job input CSV for MED.
 ```
-python src/predict/extract_from_db.py examples/study/study_uiuids.csv examples/study/study_dates.csv /home/deveshk/dbmount/MozzWear
+python3 src/predict/extract_from_db.py examples/study/study_uuids.csv examples/study/study_dates.csv /home/deveshk/dbmount/MozzWear
 ```
 3. Run the MED predict script using the CSV file from the previous step as input as well as a destination directory.
+```
+python3 src/predict/predict_med.py --csv MED_Task_2021-02-02_to_2022-02-02.csv --dst /humbug-data/study_1_med
+```
+4. RUN the MSC predict script on the output folder from MED
+```
+python3 src/predict/predict_msc.py /humbug-data/study_1_med /humbug-data/study_1_msc
+```
 * Will copy the directory structure from the src directory.
 * Assumes that the wav files have already been clipped by the MED process.
 * Creates a duplicate directory structure with copy of the wav file and the accompanying audacity label file
 ```
-python src/predict/predict_med.py --csv MED_Task_2021-02-02_to_2022-02-02.csv --dst ~/humbug-test
+
 ```
 
 
 ```
-python3 src/predict/predict_msc.py ../test_msc_data ../test_msc_inf
+
 ```

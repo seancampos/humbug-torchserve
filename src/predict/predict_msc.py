@@ -137,7 +137,7 @@ if __name__ == "__main__":
         audacity_ndarray = batch_to_audacity(batch, min_length, rate)
         
         # new output dir
-        new_output_dir = Path(os.path.dirname(wav_file).replace(args.src, args.dst))
+        new_output_dir = Path(args.dst)
         new_output_dir.mkdir(parents=True, exist_ok=True)
         # txt filename
         text_output_filename = Path(wav_file).with_suffix(".txt").name

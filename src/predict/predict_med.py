@@ -282,7 +282,7 @@ if __name__ == "__main__":
         # save CSV file out
         timestamp_df.to_csv(Path(new_output_dir, csv_output_filename))
         # audacicy filename
-        txt_output_filename = Path(rec_file).with_suffix(".txt").name
+        txt_output_filename = Path(rec_file).with_name(Path(rec_file).stem+"_mozz_pred.txt").name
         # save audacity file
         audacity_output = [[row["start"], row["stop"], f"{row['med_prob']}, PE: {row['PE']} MI: {row['MI']}"] for ind, row in timestamp_df.iterrows()]
         np.savetxt(Path(new_output_dir, txt_output_filename), audacity_output, fmt='%s', delimiter='\t')
