@@ -127,7 +127,7 @@ def _contiguous_regions(condition):
     idx.shape = (-1, 2)
     return idx
 
-def plot_mids_MI(X_CNN, y, MI, p_threshold, root_out, filename, out_format='.png'):
+def plot_mids_MI(X_CNN, y, MI, p_threshold, output_filename, out_format='.png'):
     '''Produce plot of all mosquito detected above a p_threshold. Supply Mutual Information values MI, feature inputs 
     X_CNN, and predictions y (1D array of 0/1s). Plot to be displayed on dashboard either via svg or as part of a
     video (looped png) with audio generated for this visual presentation.
@@ -180,11 +180,9 @@ def plot_mids_MI(X_CNN, y, MI, p_threshold, root_out, filename, out_format='.png
     hspace=0.065,
     wspace=0.2)
 #     plt.show()
-    output_filename = os.path.join(root_out, filename) + out_format
     plt.savefig(output_filename, transparent=False)
     plt.close(plt.gcf()) # May be better to re-write to not use plt API
 # fig.autofmt_xdate()
-    return output_filename
 
 
 async def predict_sample(signal: np.ndarray, min_duration: float, rate: int, win_size: int, step_size: int, n_hop: int) -> dict:
@@ -294,7 +292,9 @@ if __name__ == "__main__":
         mozz_audio_list = [signal[0][int(float(row["start"]) * rate):int(float(row["stop"]) * rate)] for ind, row in timestamp_df.iterrows()]
         sf.write(Path(new_output_dir, audio_output_filename), np.hstack(mozz_audio_list), rate)
         # # plot filename
-        # plot_mids_MI(spectrograms, mean_predictions[:,1], U_X, det_threshold, root_out, output_filename)
+        plot_filename = Path(rec_file).with_suffix(".png").name
+        # save png
+        # plot_mids_MI(spectrograms, mean_predictions[:,1], U_X, det_threshold, Path(new_output_dir, plot_filename))
 
 
         # audio_output_filename, audio_length, has_mosquito = _write_audio_for_plot(text_output_filename, signal, output_filename, root_out, sr)
