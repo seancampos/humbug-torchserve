@@ -34,7 +34,9 @@ def get_recordings_to_process(src: str, dst: str) -> List[str]:
     src_files = recordings_df["current_path"].tolist()
     dst_files = get_recording_list(dst)
 
-    return list(set(src_files) - set(dst_files))
+    return recordings_df[~recordings_df["current_path"].isin(dst_files)]
+
+    #return list(set(src_files) - set(dst_files))
 
 def get_audio_segments(file: str, sr: int) -> np.ndarray:
     effects = [["remix", "1"],['gain', '-n'],["highpass", "200"]]
@@ -254,7 +256,8 @@ if __name__ == "__main__":
     recording_list = get_recordings_to_process(args.csv, args.dst)
     logging.debug(f"wav list len: {len(recording_list)}")
     # loop over wav file list
-    for rec_file in tqdm(recording_list):
+    for _, rec_row in tqdm(recording_list.iterrows()):
+        rec_file = rec_row["current_path"]
         logging.debug(f"Recordings File: {rec_file}")
         # get an nd.array for each wav_file
         signal = get_audio_segments(rec_file, rate)
@@ -280,7 +283,10 @@ if __name__ == "__main__":
         # CSV filename
         csv_output_filename = Path(rec_file).with_suffix(".csv").name
         # save CSV file out
-        timestamp_df.to_csv(Path(new_output_dir, csv_output_filename))
+        output_df = timestamp_df.copy()
+        output_df["datetime_recorded"] = rec_row["datetime_recorded"]
+        output_df["uuid"] = rec_row["uuid"]
+        output_df.to_csv(Path(new_output_dir, csv_output_filename), index=False)
         # audacicy filename
         txt_output_filename = Path(rec_file).with_name(Path(rec_file).stem+"_mozz_pred.txt").name
         # save audacity file
