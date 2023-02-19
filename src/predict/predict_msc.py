@@ -5,6 +5,7 @@ import aiohttp
 import json
 from pathlib import Path
 import librosa
+import pandas as pd
 import numpy as np
 import shutil
 from tqdm.auto import tqdm
@@ -24,11 +25,28 @@ def get_wav_list(dir: str) -> List[str]:
     
     return file_list
 
-def get_wavs_to_process(src: str, dst: str) -> List[str]:
-    src_files = get_wav_list(src)
-    dst_files = get_wav_list(dst)
+def get_recording_list(dir: str) -> List[str]:
+    file_list = []
 
-    return list(set(src_files) - set(dst_files))
+    for path, subdirs, files in os.walk(dir):
+        for name in files:
+            if name.endswith(".wav") or name.endswith(".aac"):
+                file_list.append(os.path.join(path, name))
+    
+    return file_list
+
+def get_recordings_to_process(src: str, dst: str) -> List[str]:
+    recordings_df = pd.read_csv(src)
+    src_files = recordings_df["current_path"].tolist()
+    dst_files = get_recording_list(dst)
+
+    return recordings_df[~recordings_df["current_path"].isin(dst_files)]
+
+# def get_wavs_to_process(src: str, dst: str) -> List[str]:
+#     src_files = get_wav_list(src)
+#     dst_files = get_wav_list(dst)
+
+#     return list(set(src_files) - set(dst_files))
 
 def get_audio_segments(file: str, sr: int) -> np.ndarray:
     effects = [["remix", "1"],['gain', '-n'],["highpass", "200"]]
@@ -109,40 +127,69 @@ def batch_to_audacity(batch: Dict, min_duration: float, rate: int) -> List[List[
     
     return rows
 
+def batch_to_metrics_csv(recording_row: pd.core.series.Series,
+        batch: Dict, rate: int, min_length: float):
+    offsets = sorted([int(k) for k in batch.keys()])
+    med_csv_filename = Path(recording_row["current_path"]).with_suffix(".csv")
+    med_df = pd.read_csv(med_csv_filename)
+    rows = []
+    for offset in offsets:
+        row = {}
+        med_row_for_timestamp = med_df[(med_df["start"] <= offset) & (med_df["stop"] >= offset)].iloc[0]
+        row["uuid"] = recording_row["uuid"]
+        row["datetime_recorded"] = recording_row["datetime_recorded"]
+        row["med_recording_file"] = recording_row["current_path"]
+        row["med_start_time"] = med_row_for_timestamp["start"] + (offset / rate)
+        row["med_prob"] = med_row_for_timestamp["med_prob"]
+        row["msc_start_time"] = offset / rate
+        row["msc_end_time"] = (offset / rate) + min_length
+        species_list = sorted(batch.keys())
+        for species in species_list:
+            row[species] = batch[species]
+        rows.append(row)
+    return pd.DataFrame(rows)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-                        prog = 'ProgramName',
-                        description = 'What the program does',
+                        prog = 'Humbug MSC Prediction',
+                        description = 'Mosquito species classification',
                         epilog = 'Text at the bottom of help')
-    parser.add_argument("src")
-    parser.add_argument("dst")
+    parser.add_argument("--med", help="output folder from MED inference")
+    parser.add_argument("--dst", help="destination folder for MSC output")
     args = parser.parse_args()
 
     min_length = 1.92
     rate = 8000
 
     # get list of unprocessed wav files from MED process
-    wav_list = get_wavs_to_process(args.src, args.dst)
-    logging.debug(f"wav list len: {len(wav_list)}")
+    recordings_df = get_recordings_to_process(args.med, args.dst)
+    logging.debug(f"recording list len: {len(recordings_df)}")
     # loop over wav file list
-    for wav_file in tqdm(wav_list):
-        logging.debug(f"Wav File: {wav_file}")
+    for _, recording_row in tqdm(recordings_df.iterrows(), total=len(recordings_df)):
+        logging.debug(f"Wav File: {recording_row['current_path']}")
         # get an nd.array for each wav_file
-        signal = get_audio_segments(wav_file, rate)
+        signal = get_audio_segments(recording_row["current_path"], rate)
         # run predict on wav file to get dict of offsets and predictions
         batch = asyncio.run(predict_sample(signal, min_length, rate))
-        # convert batch to audacity format
-        audacity_ndarray = batch_to_audacity(batch, min_length, rate)
-        
         # new output dir
         new_output_dir = Path(args.dst)
         new_output_dir.mkdir(parents=True, exist_ok=True)
+        # create CSV output for recording
+        msc_metrics_filename = Path(recording_row["current_path"]).with_suffix(".csv").name
+        # msc_metrics_output
+        batch_to_metrics_csv(recording_row, batch, rate, min_length)\
+            .to_csv(Path(new_output_dir, msc_metrics_filename), index=False)
+        
+
+        # convert batch to audacity format
+        # audacity_ndarray = batch_to_audacity(batch, min_length, rate)
+        
+        
         # txt filename
-        text_output_filename = Path(wav_file).with_suffix(".txt").name
+        # text_output_filename = Path(wav_file).with_suffix(".txt").name
         # save file out
-        np.savetxt(Path(new_output_dir, text_output_filename), audacity_ndarray, fmt='%s', delimiter='\t')
+        # np.savetxt(Path(new_output_dir, text_output_filename), audacity_ndarray, fmt='%s', delimiter='\t')
         # copy wav to new folder
-        shutil.copyfile(wav_file, wav_file.replace(args.src, args.dst))
-        #print(json.dumps(batch))
+        shutil.copyfile(recording_row["current_path"], recording_row["current_path"].replace(args.src, args.dst))
+        
