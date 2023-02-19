@@ -286,6 +286,7 @@ if __name__ == "__main__":
         output_df = timestamp_df.copy()
         output_df["datetime_recorded"] = rec_row["datetime_recorded"]
         output_df["uuid"] = rec_row["uuid"]
+        output_df["original_recording"] = rec_row["current_path"]
         output_df.to_csv(Path(new_output_dir, csv_output_filename), index=False)
         # audacicy filename
         txt_output_filename = Path(rec_file).with_name(Path(rec_file).stem+"_mozz_pred.txt").name
