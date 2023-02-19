@@ -195,5 +195,5 @@ if __name__ == "__main__":
         # save file out
         # np.savetxt(Path(new_output_dir, text_output_filename), audacity_ndarray, fmt='%s', delimiter='\t')
         # copy wav to new folder
-        shutil.copyfile(recording_row["current_path"], recording_row["current_path"].replace(args.src, args.dst))
+        shutil.copyfile(wav_file, wav_file.replace(args.med, args.dst))
         
