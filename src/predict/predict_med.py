@@ -96,15 +96,17 @@ def _build_timestmap_df(mean_predictions, G_X, U_X, time_to_sample, det_threshol
         # start and stop are frame indexes
         # so multiply by n_hop and step_size samples
         # then div by sample rate to get seconds
-        preds_list.append({"start": str(round(start * time_to_sample,2)), "stop": str(round(stop * time_to_sample,2)),
+        start_time = round(start * time_to_sample,2)
+        end_time = round(stop * time_to_sample,2)
+        preds_list.append({"start": str(start_time), "stop": str(end_time),
                            "med_prob": "{:.4f}".format(
                                np.mean(mean_predictions[start:stop][:, 1]))
                            , "PE":
                            "{:.4f}".format(np.mean(G_X[start:stop])),
                            "MI": "{:.4f}".format(np.mean(U_X[start:stop])),
                            "msc_start": current_offset,
-                           "msc_stop": current_offset+(stop - start)})
-        current_offset += (stop - start)
+                           "msc_stop": current_offset + (end_time - start_time)})
+        current_offset += (end_time - start_time)
 
     return pd.DataFrame(preds_list)
 
