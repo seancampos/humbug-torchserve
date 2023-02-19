@@ -30,17 +30,17 @@ def get_recording_list(dir: str) -> List[str]:
 
     for path, subdirs, files in os.walk(dir):
         for name in files:
-            if name.endswith(".wav") or name.endswith(".aac"):
+            if name.endswith(".csv"):
                 file_list.append(os.path.join(path, name))
     
     return file_list
 
 def get_recordings_to_process(src: str, dst: str) -> List[str]:
-    recordings_df = pd.read_csv(src)
-    # src_files = recordings_df["current_path"].tolist()
+    src_files = get_recording_list(src)
+    src_files = [src_file for src_file in src_files if Path(src_file).with_suffix(".wav").exists()]
     dst_files = get_recording_list(dst)
 
-    return recordings_df[~recordings_df["current_path"].isin(dst_files)]
+    return list(set(src_files) - set(dst_files))
 
 # def get_wavs_to_process(src: str, dst: str) -> List[str]:
 #     src_files = get_wav_list(src)
@@ -127,18 +127,17 @@ def batch_to_audacity(batch: Dict, min_duration: float, rate: int) -> List[List[
     
     return rows
 
-def batch_to_metrics_csv(recording_row: pd.core.series.Series,
+def batch_to_metrics_csv(med_csv_filename,
         batch: Dict, rate: int, min_length: float):
     offsets = sorted([int(k) for k in batch.keys()])
-    med_csv_filename = Path(recording_row["current_path"]).with_suffix(".csv")
     med_df = pd.read_csv(med_csv_filename)
     rows = []
     for offset in offsets:
         row = {}
         med_row_for_timestamp = med_df[(med_df["start"] <= offset) & (med_df["stop"] >= offset)].iloc[0]
-        row["uuid"] = recording_row["uuid"]
-        row["datetime_recorded"] = recording_row["datetime_recorded"]
-        row["med_recording_file"] = recording_row["current_path"]
+        row["uuid"] = med_row_for_timestamp["uuid"]
+        row["datetime_recorded"] = med_row_for_timestamp["datetime_recorded"]
+        # row["med_recording_file"] = recording_row["current_path"]
         row["med_start_time"] = med_row_for_timestamp["start"] + (offset / rate)
         row["med_prob"] = med_row_for_timestamp["med_prob"]
         row["msc_start_time"] = offset / rate
@@ -163,23 +162,26 @@ if __name__ == "__main__":
     rate = 8000
 
     # get list of unprocessed wav files from MED process
-    recordings_df = get_recordings_to_process(args.med, args.dst)
-    logging.debug(f"recording list len: {len(recordings_df)}")
+    # recordings_df = get_recordings_to_process(args.med, args.dst)
+    recordings_list = get_recording_list(args.med)
+    #logging.debug(f"recording list len: {len(recordings_df)}")
     # loop over wav file list
-    for _, recording_row in tqdm(recordings_df.iterrows(), total=len(recordings_df)):
-        logging.debug(f"Wav File: {recording_row['current_path']}")
+    for recording_csv_file in tqdm(recordings_list):
+        wav_file = Path(Path(recording_csv_file).parent,
+            Path(recording_csv_file).stem+"_mozz_pred.wav")
+        logging.debug(f"Wav File: {wav_file}")
         # get an nd.array for each wav_file
-        signal = get_audio_segments(recording_row["current_path"], rate)
+        signal = get_audio_segments(wav_file, rate)
         # run predict on wav file to get dict of offsets and predictions
         batch = asyncio.run(predict_sample(signal, min_length, rate))
         # new output dir
         new_output_dir = Path(args.dst)
         new_output_dir.mkdir(parents=True, exist_ok=True)
         # create CSV output for recording
-        msc_metrics_filename = Path(recording_row["current_path"]).with_suffix(".csv").name
+        msc_metrics_filename = Path(new_output_dir, Path(recording_csv_file).name)
         # msc_metrics_output
-        batch_to_metrics_csv(recording_row, batch, rate, min_length)\
-            .to_csv(Path(new_output_dir, msc_metrics_filename), index=False)
+        batch_to_metrics_csv(recording_csv_file, batch, rate, min_length)\
+            .to_csv(msc_metrics_filename, index=False)
         
 
         # convert batch to audacity format
