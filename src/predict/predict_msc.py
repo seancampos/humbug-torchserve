@@ -37,7 +37,7 @@ def get_recording_list(dir: str) -> List[str]:
 
 def get_recordings_to_process(src: str, dst: str) -> List[str]:
     recordings_df = pd.read_csv(src)
-    src_files = recordings_df["current_path"].tolist()
+    # src_files = recordings_df["current_path"].tolist()
     dst_files = get_recording_list(dst)
 
     return recordings_df[~recordings_df["current_path"].isin(dst_files)]
