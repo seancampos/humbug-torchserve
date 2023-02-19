@@ -128,23 +128,25 @@ def batch_to_audacity(batch: Dict, min_duration: float, rate: int) -> List[List[
     return rows
 
 def batch_to_metrics_csv(med_csv_filename,
-        batch: Dict, rate: int, min_length: float):
+        batch: Dict, rate: int, min_duration: float):
     offsets = sorted([int(k) for k in batch.keys()])
     med_df = pd.read_csv(med_csv_filename)
     rows = []
     for offset in offsets:
         row = {}
-        med_row_for_timestamp = med_df[(med_df["start"] <= offset) & (med_df["stop"] >= offset)].iloc[0]
+        med_row_for_timestamp = med_df[(med_df["msc_start"] <= round(offset / rate, 2)) & (med_df["msc_stop"] >= round(offset / rate,2))].iloc[0]
         row["uuid"] = med_row_for_timestamp["uuid"]
         row["datetime_recorded"] = med_row_for_timestamp["datetime_recorded"]
         # row["med_recording_file"] = recording_row["current_path"]
-        row["med_start_time"] = med_row_for_timestamp["start"] + (offset / rate)
+        row["med_start_time"] = med_row_for_timestamp["start"] + round(offset / rate, 2)
         row["med_prob"] = med_row_for_timestamp["med_prob"]
-        row["msc_start_time"] = offset / rate
-        row["msc_end_time"] = (offset / rate) + min_length
-        species_list = sorted(batch.keys())
+        row["msc_start_time"] = round(offset / rate, 2)
+        row["msc_end_time"] = round(offset / rate, 2) + min_duration
+        row["med_start_time"] = med_row_for_timestamp["start"] + round(offset / rate, 2) - round(med_row_for_timestamp["msc_start"], 2)
+        row["med_stop_time"] = row["med_start_time"] + min_duration
+        species_list = sorted(batch[offset].keys())
         for species in species_list:
-            row[species] = batch[species]
+            row[species] = batch[offset][species]
         rows.append(row)
     return pd.DataFrame(rows)
 
