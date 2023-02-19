@@ -91,6 +91,7 @@ def _build_timestmap_df(mean_predictions, G_X, U_X, time_to_sample, det_threshol
     # find where the average 2nd element (positive score) is > threshold
     condition = mean_predictions[:, 1] > det_threshold
     preds_list = []
+    current_offset = 0
     for start, stop in _contiguous_regions(condition):
         # start and stop are frame indexes
         # so multiply by n_hop and step_size samples
@@ -100,7 +101,10 @@ def _build_timestmap_df(mean_predictions, G_X, U_X, time_to_sample, det_threshol
                                np.mean(mean_predictions[start:stop][:, 1]))
                            , "PE":
                            "{:.4f}".format(np.mean(G_X[start:stop])),
-                           "MI": "{:.4f}".format(np.mean(U_X[start:stop]))})
+                           "MI": "{:.4f}".format(np.mean(U_X[start:stop])),
+                           "msc_start": current_offset,
+                           "msc_stop": current_offset+(stop - start)})
+        current_offset += (stop - start)
 
     return pd.DataFrame(preds_list)
 
