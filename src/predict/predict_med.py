@@ -19,6 +19,8 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
+import warnings
+
 def get_recording_list(dir: str) -> List[str]:
     file_list = []
 
@@ -40,7 +42,9 @@ def get_recordings_to_process(src: str, dst: str) -> List[str]:
 
 def get_audio_segments(file: str, sr: int) -> np.ndarray:
     effects = [["remix", "1"],['gain', '-n'],["highpass", "200"]]
-    signal, rate = librosa.load(file, sr=sr)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        signal, rate = librosa.load(file, sr=sr)
     waveform, _ = torchaudio.sox_effects.apply_effects_tensor(torch.tensor(signal).expand([2, -1]), sample_rate=rate, effects=effects)
     f = waveform[0]
     mu = torch.std_mean(f)[1]
