@@ -174,3 +174,9 @@ python3 src/predict/predict_med.py --csv MED_Task_2021-02-02_to_2022-02-02.csv -
 python3 src/predict/predict_msc.py --med /humbug-data/study_1_med --dst /humbug-data/study_1_msc
 ```
 * The MSC destination folder will contain the clipped WAV files, the audacity labels, and CSVs will all of the experiment metrics.
+
+## Example Output:
+
+| uuid              | datetime_recorded        | med_start_time | med_prob | msc_start_time | msc_end_time | med_stop_time | ae aegypti | an arabiensis | an coustani | an funestus ss | an squamosus | culex pipiens complex | ma africanus | ma uniformis |
+|-------------------|--------------------------|----------------|----------|----------------|--------------|---------------|------------|---------------|-------------|----------------|--------------|-----------------------|--------------|--------------|
+| 9758c3cffe723cea  | 2021-03-17 19:43:01.292  | 0.00           | 0.7500   | 0.00           | 1.92         | 1.92          | 0.001070   | 0.199071      | 0.003074    | 0.433317       | 0.004522     | 0.313201              | 0.022966     | 0.022779     |
