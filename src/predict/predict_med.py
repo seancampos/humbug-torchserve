@@ -287,29 +287,32 @@ if __name__ == "__main__":
         mean_predictions = np.mean(predictions_array_samples, axis=0)
         
         timestamp_df = _build_timestmap_df(mean_predictions, G_X, U_X, (n_hop * step_size / rate), det_threshold)
-        # new output dir
-        new_output_dir = Path(args.dst)
-        new_output_dir.mkdir(parents=True, exist_ok=True)
-        # CSV filename
-        csv_output_filename = Path(rec_file).with_suffix(".csv").name
-        # save CSV file out
-        output_df = timestamp_df.copy()
-        output_df["datetime_recorded"] = rec_row["datetime_recorded"]
-        output_df["uuid"] = rec_row["uuid"]
-        output_df["original_recording"] = rec_row["current_path"]
-        output_df.to_csv(Path(new_output_dir, csv_output_filename), index=False)
-        # audacicy filename
-        txt_output_filename = Path(rec_file).with_name(Path(rec_file).stem+"_mozz_pred.txt").name
-        # save audacity file
-        audacity_output = [[row["start"], row["stop"], f"{row['med_prob']}, PE: {row['PE']} MI: {row['MI']}"] for ind, row in timestamp_df.iterrows()]
-        np.savetxt(Path(new_output_dir, txt_output_filename), audacity_output, fmt='%s', delimiter='\t')
-        # audio file name
-        audio_output_filename = Path(rec_file).with_name(Path(rec_file).stem+"_mozz_pred.wav").name
-        # save audio file
-        mozz_audio_list = [signal[0][int(float(row["start"]) * rate):int(float(row["stop"]) * rate)] for ind, row in timestamp_df.iterrows()]
-        sf.write(Path(new_output_dir, audio_output_filename), np.hstack(mozz_audio_list), rate)
-        # # plot filename
-        plot_filename = Path(rec_file).with_suffix(".png").name
+
+        if len(timestamp_df):
+            # new output dir
+            new_output_dir = Path(args.dst)
+            new_output_dir.mkdir(parents=True, exist_ok=True)
+            # CSV filename
+            csv_output_filename = Path(rec_file).with_suffix(".csv").name
+            # save CSV file out
+            output_df = timestamp_df.copy()
+            output_df["datetime_recorded"] = rec_row["datetime_recorded"]
+            output_df["uuid"] = rec_row["uuid"]
+            output_df["original_recording"] = rec_row["current_path"]
+            output_df.to_csv(Path(new_output_dir, csv_output_filename), index=False)
+            # audacicy filename
+            txt_output_filename = Path(rec_file).with_name(Path(rec_file).stem+"_mozz_pred.txt").name
+            # save audacity file
+            audacity_output = [[row["start"], row["stop"], f"{row['med_prob']}, PE: {row['PE']} MI: {row['MI']}"] for ind, row in timestamp_df.iterrows()]
+            np.savetxt(Path(new_output_dir, txt_output_filename), audacity_output, fmt='%s', delimiter='\t')
+            # audio file name
+            audio_output_filename = Path(rec_file).with_name(Path(rec_file).stem+"_mozz_pred.wav").name
+            # save audio file
+            mozz_audio_list = [signal[0][int(float(row["start"]) * rate):int(float(row["stop"]) * rate)] for ind, row in timestamp_df.iterrows()]
+            
+            sf.write(Path(new_output_dir, audio_output_filename), np.hstack(mozz_audio_list), rate)
+            # # plot filename
+            plot_filename = Path(rec_file).with_suffix(".png").name
         # save png
         # plot_mids_MI(spectrograms, mean_predictions[:,1], U_X, det_threshold, Path(new_output_dir, plot_filename))
 
