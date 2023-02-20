@@ -171,6 +171,6 @@ python3 src/predict/predict_med.py --csv MED_Task_2021-02-02_to_2022-02-02.csv -
 ```
 4. RUN the MSC predict script on the output folder from MED
 ```
-python3 src/predict/predict_msc.py /humbug-data/study_1_med /humbug-data/study_1_msc
+python3 src/predict/predict_msc.py --med /humbug-data/study_1_med --dst /humbug-data/study_1_msc
 ```
 * The MSC destination folder will contain the clipped WAV files, the audacity labels, and CSVs will all of the experiment metrics.
