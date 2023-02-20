@@ -14,14 +14,15 @@ pip install librosa
 
 ## Creating an archive
 
-### MSC
-```
-torch-model-archiver --model-name midsmscmodel --version 1.0 --model-file src/msc/mids_msc.py --serialized-file ../../models/model_e186_2022_10_11_11_18_50.pth --handler src/msc/model_handler.py --extra-files src/msc/index_to_name.json
-```
 
 ### MED
 ```
 torch-model-archiver --model-name midsmedmodel --version 1.0 --model-file src/med/mids_med.py --serialized-file ../../models/model_presentation_draft_2022_04_07_11_52_08.pth --handler src/med/model_handler.py
+```
+
+### MSC
+```
+torch-model-archiver --model-name midsmscmodel --version 1.0 --model-file src/msc/mids_msc.py --serialized-file ../../models/model_e186_2022_10_11_11_18_50.pth --handler src/msc/model_handler.py --extra-files src/msc/index_to_name.json
 ```
 
 
@@ -172,14 +173,4 @@ python3 src/predict/predict_med.py --csv MED_Task_2021-02-02_to_2022-02-02.csv -
 ```
 python3 src/predict/predict_msc.py /humbug-data/study_1_med /humbug-data/study_1_msc
 ```
-* Will copy the directory structure from the src directory.
-* Assumes that the wav files have already been clipped by the MED process.
-* Creates a duplicate directory structure with copy of the wav file and the accompanying audacity label file
-```
-
-```
-
-
-```
-
-```
+* The MSC destination folder will contain the clipped WAV files, the audacity labels, and CSVs will all of the experiment metrics.

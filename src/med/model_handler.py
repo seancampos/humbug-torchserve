@@ -7,9 +7,11 @@ ModelHandler defines a custom model handler.
 """
 import logging
 
+import itertools
 #from ts.torch_handler.base_handler import BaseHandler
 from ts.torch_handler.image_classifier import ImageClassifier
 import torch
+import torch.nn.functional as F
 import torchaudio
 import torchaudio.transforms as AT
 
@@ -98,3 +100,19 @@ class ModelHandler(ImageClassifier):
             results = self.model(marshalled_data, *args, **kwargs)['prediction']
         return results
 
+    # def postprocess(self, data):
+    #     ps = F.softmax(data["predicition"], dim=1)
+    #     probs, classes = torch.topk(ps, self.topk, dim=1)
+    #     probs = probs.tolist()
+    #     classes = classes.tolist()
+
+    #     lbl_classes = itertools.repeat(range(len(probs[0])), len(probs))
+
+    #     results = [
+    #         {
+    #             (str(lbl_class)): prob
+    #             for lbl_class, prob in zip(*row)
+    #         }
+    #         for row in zip(lbl_classes, probs)
+    #     ]
+    #     return results.append({"spectrogram": data["spectrogram"]})

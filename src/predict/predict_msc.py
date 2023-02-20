@@ -187,13 +187,11 @@ if __name__ == "__main__":
         
 
         # convert batch to audacity format
-        # audacity_ndarray = batch_to_audacity(batch, min_length, rate)
-        
-        
+        audacity_ndarray = batch_to_audacity(batch, min_length, rate)
         # txt filename
-        # text_output_filename = Path(wav_file).with_suffix(".txt").name
+        text_output_filename = Path(wav_file).with_suffix(".txt").name
         # save file out
-        # np.savetxt(Path(new_output_dir, text_output_filename), audacity_ndarray, fmt='%s', delimiter='\t')
+        np.savetxt(Path(new_output_dir, text_output_filename), audacity_ndarray, fmt='%s', delimiter='\t')
         # copy wav to new folder
         shutil.copyfile(wav_file, wav_file.replace(args.med, args.dst))
         
