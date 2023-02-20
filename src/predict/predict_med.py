@@ -262,7 +262,7 @@ if __name__ == "__main__":
     recording_list = get_recordings_to_process(args.csv, args.dst)
     logging.debug(f"wav list len: {len(recording_list)}")
     # loop over wav file list
-    for _, rec_row in tqdm(recording_list.iterrows()):
+    for _, rec_row in tqdm(recording_list.iterrows(), total=len(recording_list)):
         rec_file = rec_row["current_path"]
         logging.debug(f"Recordings File: {rec_file}")
         # get an nd.array for each wav_file
