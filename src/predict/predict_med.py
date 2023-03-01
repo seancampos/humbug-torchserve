@@ -319,7 +319,7 @@ if __name__ == "__main__":
                     # # plot filename
                     plot_filename = Path(rec_file).with_suffix(".png").name
             except:
-                pass
+                logging.error(f"Exception caught: Recordings File: {rec_file}")
         # save png
         # plot_mids_MI(spectrograms, mean_predictions[:,1], U_X, det_threshold, Path(new_output_dir, plot_filename))
 
