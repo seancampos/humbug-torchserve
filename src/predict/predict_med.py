@@ -303,7 +303,7 @@ if __name__ == "__main__":
             logging.debug(f"Recordings File: {rec_file}")
             # get an nd.array for each wav_file
             signal = get_audio_segments(rec_file, rate)
-            if signal.shape[0] < win_size * n_hop:
+            if signal.shape[1] < win_size * n_hop:
                 signal = torch.tensor(np.array(pad_mean(signal.numpy()[0], win_size * n_hop))).unsqueeze(0)
             # run predict on wav file to get dict of offsets and predictions
             predictions = asyncio.run(predict_sample(signal, min_length, rate, win_size, step_size, n_hop))
