@@ -245,6 +245,34 @@ def batch_to_audacity(batch: Dict, min_duration: float, rate: int) -> List[List[
     return rows
 
 
+# This function pads a short-audio tensor with its mean to ensure that it becomes a 1.92 sec long audio equivalent
+def pad_mean(x_temp: np.ndarray, sample_length: int) -> np.ndarray:
+    logging.debug("inside padding mean...")
+    x_mean = np.mean(x_temp)
+    #x_mean.cuda()
+    
+    logging.debug("X_mean = " + str(x_mean))
+    left_pad_amt = int((sample_length - x_temp.shape[0]) // 2)
+    logging.debug("left_pad_amt = " + str(left_pad_amt))
+    left_pad = np.zeros([left_pad_amt]) #+ (0.1**0.5)*torch.randn(1, left_pad_amt)
+    logging.debug("left_pad shape = " + str(left_pad.shape))
+    left_pad_mean_add = left_pad + x_mean
+    logging.debug("left_pad_mean shape = " + str(left_pad_mean_add))
+    logging.debug("sum of left pad mean add = " + str(np.sum(left_pad_mean_add)))
+    
+    right_pad_amt = int(sample_length - x_temp.shape[0] - left_pad_amt)
+    right_pad = np.zeros([right_pad_amt])# + (0.1**0.5)*torch.randn(1, right_pad_amt)
+    logging.debug("right_pad shape = " + str(right_pad.shape))
+    right_pad_mean_add = right_pad + x_mean
+    logging.debug("right_pad_mean shape = " + str(right_pad_mean_add))
+    logging.debug("sum of right pad mean add = "  + str(np.sum(right_pad_mean_add)))
+    
+    f = np.hstack([left_pad_mean_add, x_temp, right_pad_mean_add])
+    # f = np.unsqueeze(dim = 0)
+    #print("returning a tensor of shape = " + str(f.shape))
+    return(f)
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -275,51 +303,50 @@ if __name__ == "__main__":
             logging.debug(f"Recordings File: {rec_file}")
             # get an nd.array for each wav_file
             signal = get_audio_segments(rec_file, rate)
+            if signal.shape[0] < win_size * n_hop:
+                signal = torch.tensor(np.array(pad_mean(signal.numpy()[0], win_size * n_hop))).unsqueeze(0)
             # run predict on wav file to get dict of offsets and predictions
-            try:
-                predictions = asyncio.run(predict_sample(signal, min_length, rate, win_size, step_size, n_hop))
-                # convert JSON output to 2-D array
-                # {0: {'1': 0.7850480079650879, '0': 0.21495196223258972},
-                #  1: {'1': 0.69720059633255, '0': 0.30279943346977234},
-                #  2: {'1': 0.7008734345436096, '0': 0.29912662506103516},
-                #  3: {'1': 0.6336677670478821, '0': 0.3663322329521179},
-                predictions_array = np.array([[pred['0'], pred['1']] for ind, pred in predictions.items()])
-                # layer sliding windows together
-                predictions_array_samples = np.array([predictions_array[:-4], predictions_array[1:-3], predictions_array[2:-2]])
+            predictions = asyncio.run(predict_sample(signal, min_length, rate, win_size, step_size, n_hop))
+            # convert JSON output to 2-D array
+            # {0: {'1': 0.7850480079650879, '0': 0.21495196223258972},
+            #  1: {'1': 0.69720059633255, '0': 0.30279943346977234},
+            #  2: {'1': 0.7008734345436096, '0': 0.29912662506103516},
+            #  3: {'1': 0.6336677670478821, '0': 0.3663322329521179},
+            predictions_array = np.array([[pred['0'], pred['1']] for ind, pred in predictions.items()])
+            # layer sliding windows together
+            predictions_array_samples = np.array([predictions_array[:-4], predictions_array[1:-3], predictions_array[2:-2]])
 
-                frame_count = signal.unfold(1, win_size * n_hop, step_size * n_hop).shape[1]
-                G_X, U_X, _ = active_BALD(np.log(predictions_array_samples), frame_count, 2)
-                mean_predictions = np.mean(predictions_array_samples, axis=0)
+            frame_count = signal.unfold(1, win_size * n_hop, step_size * n_hop).shape[1]
+            G_X, U_X, _ = active_BALD(np.log(predictions_array_samples), frame_count, 2)
+            mean_predictions = np.mean(predictions_array_samples, axis=0)
+            
+            timestamp_df = _build_timestmap_df(mean_predictions, G_X, U_X, (n_hop * step_size / rate), det_threshold)
+
+            if len(timestamp_df):
+                # new output dir
                 
-                timestamp_df = _build_timestmap_df(mean_predictions, G_X, U_X, (n_hop * step_size / rate), det_threshold)
-
-                if len(timestamp_df):
-                    # new output dir
-                    
-                    new_output_dir.mkdir(parents=True, exist_ok=True)
-                    # CSV filename
-                    csv_output_filename = Path(rec_file).with_suffix(".csv").name
-                    # save CSV file out
-                    output_df = timestamp_df.copy()
-                    output_df["datetime_recorded"] = rec_row["datetime_recorded"]
-                    output_df["uuid"] = rec_row["uuid"]
-                    output_df["original_recording"] = rec_row["current_path"]
-                    output_df.to_csv(Path(new_output_dir, csv_output_filename), index=False)
-                    # audacicy filename
-                    
-                    # save audacity file
-                    audacity_output = [[row["start"], row["stop"], f"{row['med_prob']}, PE: {row['PE']} MI: {row['MI']}"] for ind, row in timestamp_df.iterrows()]
-                    np.savetxt(Path(new_output_dir, txt_output_filename), audacity_output, fmt='%s', delimiter='\t')
-                    # audio file name
-                    audio_output_filename = Path(rec_file).with_name(Path(rec_file).stem+"_mozz_pred.wav").name
-                    # save audio file
-                    mozz_audio_list = [signal[0][int(float(row["start"]) * rate):int(float(row["stop"]) * rate)] for ind, row in timestamp_df.iterrows()]
-                    
-                    sf.write(Path(new_output_dir, audio_output_filename), np.hstack(mozz_audio_list), rate)
-                    # # plot filename
-                    plot_filename = Path(rec_file).with_suffix(".png").name
-            except:
-                logging.error(f"Exception caught: Recordings File: {rec_file}")
+                new_output_dir.mkdir(parents=True, exist_ok=True)
+                # CSV filename
+                csv_output_filename = Path(rec_file).with_suffix(".csv").name
+                # save CSV file out
+                output_df = timestamp_df.copy()
+                output_df["datetime_recorded"] = rec_row["datetime_recorded"]
+                output_df["uuid"] = rec_row["uuid"]
+                output_df["original_recording"] = rec_row["current_path"]
+                output_df.to_csv(Path(new_output_dir, csv_output_filename), index=False)
+                # audacicy filename
+                
+                # save audacity file
+                audacity_output = [[row["start"], row["stop"], f"{row['med_prob']}, PE: {row['PE']} MI: {row['MI']}"] for ind, row in timestamp_df.iterrows()]
+                np.savetxt(Path(new_output_dir, txt_output_filename), audacity_output, fmt='%s', delimiter='\t')
+                # audio file name
+                audio_output_filename = Path(rec_file).with_name(Path(rec_file).stem+"_mozz_pred.wav").name
+                # save audio file
+                mozz_audio_list = [signal[0][int(float(row["start"]) * rate):int(float(row["stop"]) * rate)] for ind, row in timestamp_df.iterrows()]
+                
+                sf.write(Path(new_output_dir, audio_output_filename), np.hstack(mozz_audio_list), rate)
+                # # plot filename
+                plot_filename = Path(rec_file).with_suffix(".png").name
         # save png
         # plot_mids_MI(spectrograms, mean_predictions[:,1], U_X, det_threshold, Path(new_output_dir, plot_filename))
 
