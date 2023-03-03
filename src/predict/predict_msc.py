@@ -168,31 +168,34 @@ if __name__ == "__main__":
     # recordings_df = get_recordings_to_process(args.med, args.dst)
     recordings_list = get_recording_list(args.med)
     #logging.debug(f"recording list len: {len(recordings_df)}")
+    # new output dir
+    new_output_dir = Path(args.dst)
+    new_output_dir.mkdir(parents=True, exist_ok=True)
     # loop over wav file list
     for recording_csv_file in tqdm(recordings_list):
         wav_file = Path(Path(recording_csv_file).parent,
             Path(recording_csv_file).stem+"_mozz_pred.wav")
         logging.debug(f"Wav File: {wav_file}")
-        # get an nd.array for each wav_file
-        signal = get_audio_segments(wav_file, rate)
-        # run predict on wav file to get dict of offsets and predictions
-        batch = asyncio.run(predict_sample(signal, min_length, rate))
-        # new output dir
-        new_output_dir = Path(args.dst)
-        new_output_dir.mkdir(parents=True, exist_ok=True)
         # create CSV output for recording
         msc_metrics_filename = Path(new_output_dir, Path(recording_csv_file).name)
-        # msc_metrics_output
-        batch_to_metrics_csv(recording_csv_file, batch, rate, min_length)\
-            .to_csv(msc_metrics_filename, index=False)
-        
+        if not msc_metrics_filename.exists():
+            # get an nd.array for each wav_file
+            signal = get_audio_segments(wav_file, rate)
+            # run predict on wav file to get dict of offsets and predictions
+            batch = asyncio.run(predict_sample(signal, min_length, rate))
+            
+            
+            # msc_metrics_output
+            batch_to_metrics_csv(recording_csv_file, batch, rate, min_length)\
+                .to_csv(msc_metrics_filename, index=False)
+            
 
-        # convert batch to audacity format
-        audacity_ndarray = batch_to_audacity(batch, min_length, rate)
-        # txt filename
-        text_output_filename = Path(wav_file).with_suffix(".txt").name
-        # save file out
-        np.savetxt(Path(new_output_dir, text_output_filename), audacity_ndarray, fmt='%s', delimiter='\t')
-        # copy wav to new folder
-        shutil.copyfile(str(wav_file), str(wav_file).replace(args.med, args.dst))
+            # convert batch to audacity format
+            audacity_ndarray = batch_to_audacity(batch, min_length, rate)
+            # txt filename
+            text_output_filename = Path(wav_file).with_suffix(".txt").name
+            # save file out
+            np.savetxt(Path(new_output_dir, text_output_filename), audacity_ndarray, fmt='%s', delimiter='\t')
+            # copy wav to new folder
+            shutil.copyfile(str(wav_file), str(wav_file).replace(args.med, args.dst))
         
