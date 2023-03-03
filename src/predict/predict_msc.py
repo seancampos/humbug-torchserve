@@ -31,7 +31,8 @@ def get_recording_list(dir: str) -> List[str]:
     for path, subdirs, files in os.walk(dir):
         for name in files:
             if name.endswith(".csv"):
-                file_list.append(os.path.join(path, name))
+                if len(pd.read_csv(name)) > 0:
+                    file_list.append(os.path.join(path, name))
     
     return file_list
 
